@@ -9,6 +9,7 @@ sudo apt install -y git
 sudo apt install -y build-essential
 sudo apt install -y ca-certificates
 sudo apt install -y software-properties-common
+sudo apt install -y docker.io
 ```
 
 Run the following commands to check if everything installed properly

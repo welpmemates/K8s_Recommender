@@ -42,3 +42,9 @@ curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-
 sudo install minikube-linux-amd64 /usr/local/bin/minikube
 minikube version
 ```
+
+Start Minikube (Docker Driver)
+```
+minikube start --driver=docker
+kubectl get nodes
+```

@@ -30,3 +30,10 @@ docker --version
 # Should print Hello from Docker!
 docker run hello-world
 ```
+Install kubectl (Kubernetes CLI)
+```
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install kubectl /usr/local/bin/kubectl
+# Should print kubectl version
+kubectl version --client
+```

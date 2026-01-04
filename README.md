@@ -19,3 +19,14 @@ curl --version
 git --version
 gcc --version
 ```
+
+Verify that docker is installed correctly or not
+```
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker $USER
+newgrp docker
+docker --version
+# Should print Hello from Docker!
+docker run hello-world
+```

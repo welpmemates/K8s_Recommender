@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-app
+  template:
+    metadata:
+      labels:
+        app: mock-app
+    spec:
+      containers:
+      - name: mock-app
+        image: mock-fastapi:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"

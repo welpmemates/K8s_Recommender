@@ -48,3 +48,9 @@ Start Minikube (Docker Driver)
 minikube start --driver=docker
 kubectl get nodes
 ```
+
+Install Helm (Needed for Prometheus/Grafana)
+```
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+helm version
+```

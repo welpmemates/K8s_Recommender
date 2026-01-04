@@ -54,3 +54,48 @@ Install Helm (Needed for Prometheus/Grafana)
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 helm version
 ```
+
+Python Stepup
+```
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install numpy
+pip install pandas
+pip install scikit-learn
+pip install prometheus-client
+pip install requests
+pip install pyyaml
+pip install matplotlib
+```
+
+Verifying imports
+```
+python - <<EOF
+import torch
+import numpy
+import pandas
+import sklearn
+import prometheus_client
+import yaml
+import matplotlib
+
+print("All imports OK")
+print("Torch version:", torch.__version__)
+print("CUDA available:", torch.cuda.is_available())
+EOF
+```
+
+Sanity check
+```
+docker --version
+kubectl version --client
+minikube status
+helm version
+docker ps
+kubectl get nodes
+```
+
+To Start (Everytime)
+```
+cd K8s_Recommender
+source venv/bin/activate
+```

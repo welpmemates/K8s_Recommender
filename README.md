@@ -27,13 +27,18 @@ sudo systemctl start docker
 sudo usermod -aG docker $USER
 newgrp docker
 docker --version
-# Should print Hello from Docker!
 docker run hello-world
 ```
 Install kubectl (Kubernetes CLI)
 ```
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install kubectl /usr/local/bin/kubectl
-# Should print kubectl version
 kubectl version --client
+```
+
+Install Minikube (Local K8s Cluster)
+```
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+minikube version
 ```

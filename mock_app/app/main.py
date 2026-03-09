@@ -5,7 +5,7 @@ import hashlib
 
 app = FastAPI()
 
-# GLOBAL memory holder (this is the key)
+# GLOBAL memory holder
 MEMORY_HOG = []
 
 @app.get("/work")

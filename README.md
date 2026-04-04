@@ -316,14 +316,7 @@ Your Grafana dashboard includes:
 
 ---
 
-# 🤝 Sharing Grafana Dashboard
-
-## ✅ Best Method — Export JSON
-
-1. Open your dashboard
-2. Click ⚙️ (Settings)
-3. Go to **JSON Model**
-4. Download or copy JSON
+# 🤝 Grafana Dashboard
 
 ---
 
@@ -331,20 +324,6 @@ Your Grafana dashboard includes:
 
 ```
 Grafana → Dashboards → Import → Upload JSON
-```
-
----
-
-## Recommended: Store in Repo
-
-```bash
-mkdir -p infra/grafana
-```
-
-Save:
-
-```
-infra/grafana/dashboard.json
 ```
 
 ---

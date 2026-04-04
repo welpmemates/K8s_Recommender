@@ -1,170 +1,199 @@
-# K8s_Recommender
-Online Learning-Based Kubernetes Resource Recommendation System Using Tokenized Request Behavior and LSTM.<br>
-<br>
-This project builds a system that observes application resource behavior inside Kubernetes and learns to recommend optimal CPU and memory configurations using telemetry-driven machine learning.<br>
+# K8s Recommender
 
-### Environment Setup
-Install Base Dependencies<br>
-```
-sudo apt update
-sudo apt upgrade -y
+## Overview
 
-sudo apt install -y curl
-sudo apt install -y wget
-sudo apt install -y git
-sudo apt install -y build-essential
-sudo apt install -y ca-certificates
-sudo apt install -y software-properties-common
-sudo apt install -y docker.io
-```
+This project builds an **online learning–based Kubernetes resource recommendation system** that learns CPU and memory requirements from real workload behavior.
 
-Verify Installations<br>
-```
-apt --version
-curl --version
-git --version
-gcc --version
-```
+Phase 1 focuses on creating a **realistic, observable workload inside Kubernetes** that generates meaningful resource usage patterns.
 
-Docker Setup<br>
+---
+
+## Phase 1: Workload Simulation & Observability ✅
+
+### Objective
+
+Create a controlled application that:
+
+* Generates CPU and memory load
+* Produces non-deterministic request patterns
+* Exposes metrics for monitoring and learning
+
+---
+
+## System Architecture (Phase 1)
+
 ```
-sudo systemctl enable docker
-sudo systemctl start docker
-sudo usermod -aG docker $USER
-newgrp docker
+Locust → FastAPI Mock App → Kubernetes Pod → Metrics Server
 ```
 
-Verify docker<br>
+---
+
+## Mock Application
+
+Location:
+
 ```
-docker --version
-docker run hello-world
+mock_app/app/main.py
 ```
 
-Install Kubectl<br>
-```
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+### Features
 
-sudo install kubectl /usr/local/bin/kubectl
-kubectl version --client
-```
+* Dynamic workload via `/work`
+* Token generation per request
+* CPU simulation (hashing)
+* Memory simulation (optional retention)
+* Prometheus metrics endpoint (`/metrics`)
 
-Install Minikube
-```
-curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+Example request:
 
-sudo install minikube-linux-amd64 /usr/local/bin/minikube
-minikube version
+```
+/work?size=10000&sleep=0.05&retain=true
 ```
 
-Start minikube<br>
-```
-minikube start --driver=docker
-kubectl get nodes
-```
+---
 
-Install Helm<br>
+## Kubernetes Deployment
+
+Defined in:
+
+* `deployment.yaml` 
+* `service.yaml` 
+
+### Resource Configuration
+
+* CPU: 100m → 500m
+* Memory: 128Mi → 512Mi
+
+---
+
+## Load Generation
+
+Using Locust:
+
 ```
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-helm version
-```
-
-Python Environment Setup<br>
-```
-# Create Virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install libraries:
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-pip install numpy
-pip install pandas
-pip install scikit-learn
-pip install prometheus-client
-pip install requests
-pip install pyyaml
-pip install matplotlib
-
-# Verify python environment
-python - <<EOF
-import torch
-import numpy
-import pandas
-import sklearn
-import prometheus_client
-import yaml
-import matplotlib
-
-print("All imports OK")
-print("Torch version:", torch.__version__)
-print("CUDA available:", torch.cuda.is_available())
-EOF
+mock_app/locust/locustfile.py
 ```
 
-### Running the mock application
-Start Kubernetes<br>
+Features:
+
+* Randomized request sizes
+* Variable latency
+* Continuous load generation
+
+---
+
+## Metrics Exposed
+
+From application:
+
+* `app_requests_total`
+* `app_request_duration_seconds`
+* `token_cpu_estimate`
+* `token_memory_estimate`
+* `active_tokens`
+
+From Kubernetes:
+
+* CPU usage
+* Memory usage
+
+---
+
+## How to Run
+
+### 1. Start Kubernetes
+
 ```
 minikube start
 minikube addons enable metrics-server
 ```
 
-Verify metrics API<br>
-```
-# You should see (metrics-server-xxxxx Running)
-kubectl get pods -n kube-system | grep metrics
-```
+---
 
-Build Docker Image inside minikube<br>
+### 2. Build Image (inside Minikube)
+
 ```
 eval $(minikube docker-env)
 
 docker build -t mock-fastapi:latest -f mock_app/docker/Dockerfile mock_app
-
-# Verify
-docker images | grep mock-fastapi
 ```
 
-Deploy Application to Kubernetes<br>
+---
+
+### 3. Deploy
+
 ```
 kubectl apply -f mock_app/k8s/
-
-# Check pod status (you should see: mock-app-xxxxx 1/1 Running)
 kubectl get pods
-
-# Verify application logs (you should see: Uvicorn running on http://0.0.0.0:8000)
-kubectl logs deployment/mock-app
 ```
 
-### P1 Testing
-Get Cluster IP<br>
+---
+
+### 4. Test Application
+
 ```
-# Example: 192.168.49.2
 minikube ip
 ```
 
-Test application endpoint<br>
+Open:
+
 ```
-curl "http://192.168.49.2:30007/work?size=10000"
+http://<ip>:30007/work
+http://<ip>:30007/metrics
 ```
 
-Test Prometheus Metrics Endpoint<br>
-```
-# In browser open
-http://192.168.49.2:30007/metrics
-```
+---
 
-Kubernetes Resource Metrics<br>
-```
-kubectl top pods
-```
+### 5. Generate Load
 
-Generate Load with locust<br>
 ```
 cd mock_app/locust
-locust --host=http://192.168.49.2:30007
+locust --host=http://<ip>:30007
+```
 
-# Open in browser
+Open:
+
+```
 http://localhost:8089
+```
 
-# Observe Load
+---
+
+### 6. Observe Metrics
+
+```
 kubectl top pods
 ```
+
+---
+
+## Key Observations (Phase 1)
+
+* CPU usage scales with **request rate**
+* Memory usage scales with **retention behavior**
+* Metrics are stable and observable
+* Workload is reproducible and configurable
+
+---
+
+## Outcome
+
+Phase 1 successfully establishes:
+
+* A realistic Kubernetes workload
+* Reliable CPU and memory signals
+* Tokenized request behavior
+* Observability pipeline foundation
+
+---
+
+## Next Phase
+
+Phase 2 will introduce:
+
+* Prometheus scraping
+* Grafana dashboards
+* Time-series aggregation
+* Feature extraction for ML
+
+---

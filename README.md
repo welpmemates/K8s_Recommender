@@ -1,14 +1,52 @@
-# K8s Recommender
+# 🚀 K8s Resource Recommender
 
 Online Learning-Based Kubernetes Resource Recommendation System using tokenized request behavior and LSTM.
 
-This project builds a system that observes application resource behavior inside Kubernetes and learns to recommend optimal CPU and memory configurations using telemetry-driven machine learning.
+This project builds a system that:
+
+* Runs dynamic workloads inside Kubernetes
+* Observes real-time CPU & memory usage
+* Converts request patterns into structured features
+* Trains an online LSTM model
+* Recommends optimal Kubernetes resource configurations
+
+---
+
+# 🧠 System Overview
+
+Instead of directly modeling requests, we use a **token abstraction layer**:
+
+```
+Request → Token → Resource Signature → Aggregated Features → LSTM
+```
+
+### 🔑 Key Idea
+
+* Tokens are **unbounded**
+* We convert them into **fixed-size time-series features**
+* These features are used for **online learning**
+
+---
+
+# 🧱 Project Structure
+
+```
+K8S_RECOMMENDER/
+├── mock_app/
+│   ├── app/                # FastAPI application
+│   ├── docker/             # Dockerfile
+│   ├── k8s/                # Kubernetes manifests
+│   └── locust/             # Load testing scripts
+├── infra/                  # (Phase 3+) ML + aggregation services
+├── README.md
+└── requirements.txt
+```
 
 ---
 
 # 🔧 Environment Setup
 
-## Install Base Dependencies
+## 1. Install Base Dependencies
 
 ```bash
 sudo apt update
@@ -47,7 +85,7 @@ docker run hello-world
 
 ---
 
-# ☸️ Install Kubernetes Tools
+# ☸️ Kubernetes Setup
 
 ## Install kubectl
 
@@ -74,7 +112,7 @@ kubectl get nodes
 
 ---
 
-# ⚙️ Install Helm
+# ⚙️ Helm Setup
 
 ```bash
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
@@ -83,16 +121,14 @@ helm version
 
 ---
 
-# 🐍 Python Environment Setup
-
-## Create Virtual Environment
+# 🐍 Python Environment
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-## Install Required Libraries
+## Install Dependencies
 
 ```bash
 pip install torch --index-url https://download.pytorch.org/whl/cpu
@@ -101,7 +137,7 @@ pip install prometheus-client requests pyyaml matplotlib
 pip install fastapi uvicorn locust
 ```
 
-## Verify Python Environment
+## Verify Setup
 
 ```bash
 python - <<EOF
@@ -110,13 +146,12 @@ import prometheus_client, yaml, matplotlib
 
 print("All imports OK")
 print("Torch version:", torch.__version__)
-print("CUDA available:", torch.cuda.is_available())
 EOF
 ```
 
 ---
 
-# 🚀 Running the Mock Application (Phase 1)
+# 🚀 Phase 1 — Workload + Token System
 
 ## Start Kubernetes
 
@@ -125,41 +160,18 @@ minikube start
 minikube addons enable metrics-server
 ```
 
-## Verify Metrics Server
-
-```bash
-kubectl get pods -n kube-system | grep metrics
-```
-
----
-
-## Build Docker Image (inside Minikube)
+## Build Docker Image
 
 ```bash
 eval $(minikube docker-env)
-
 docker build -t mock-fastapi:latest -f mock_app/docker/Dockerfile mock_app
-docker images | grep mock-fastapi
 ```
-
----
 
 ## Deploy Application
 
 ```bash
 kubectl apply -f mock_app/k8s/
 kubectl get pods
-kubectl logs deployment/mock-app
-```
-
----
-
-# 🧪 Phase 1 Testing
-
-## Get Cluster IP
-
-```bash
-minikube ip
 ```
 
 ---
@@ -167,14 +179,16 @@ minikube ip
 ## Test Application
 
 ```bash
+minikube ip
+```
+
+```bash
 curl "http://<ip>:30007/work?size=10000"
 ```
 
 ---
 
-## Test Metrics Endpoint
-
-Open in browser:
+## Metrics Endpoint
 
 ```
 http://<ip>:30007/metrics
@@ -182,7 +196,7 @@ http://<ip>:30007/metrics
 
 ---
 
-## View Kubernetes Resource Usage
+## Observe Resource Usage
 
 ```bash
 kubectl top pods
@@ -190,7 +204,7 @@ kubectl top pods
 
 ---
 
-## Generate Load (Locust)
+## Load Testing (Locust)
 
 ```bash
 cd mock_app/locust
@@ -205,25 +219,163 @@ http://localhost:8089
 
 ---
 
-# 📊 Phase 1 Outcome
+# 📊 Phase 2 — Prometheus + Grafana
 
-Phase 1 establishes:
+## Create Monitoring Namespace
 
-* A realistic Kubernetes workload
-* Dynamic CPU and memory behavior
-* Tokenized request generation
-* Prometheus-compatible metrics exposure
-* Reliable resource observability
+```bash
+kubectl create namespace monitoring
+```
+
+---
+
+## Install Monitoring Stack
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm install prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring
+```
+
+---
+
+## Verify Monitoring Pods
+
+```bash
+kubectl get pods -n monitoring
+```
+
+---
+
+## Access Prometheus
+
+```bash
+kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
+```
+
+Open:
+
+```
+http://localhost:9090
+```
+
+---
+
+## Access Grafana
+
+```bash
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
+```
+
+Open:
+
+```
+http://localhost:3000
+```
+
+---
+
+## 🔐 Grafana Login
+
+Get password:
+
+```bash
+kubectl --namespace monitoring get secrets prometheus-grafana \
+  -o jsonpath="{.data.admin-password}" | base64 -d ; echo
+```
+
+Login:
+
+```
+Username: admin
+Password: <output of above command>
+```
+
+---
+
+# 📈 Dashboard Panels
+
+Your Grafana dashboard includes:
+
+1. **Total Requests** (Stat)
+2. **Request Rate (req/sec)** (Time Series)
+3. **CPU Usage (cores)** (Gauge)
+4. **Memory Usage (MB)** (Bar Gauge)
+
+---
+
+# 🎯 Phase 2 Outcome
+
+* Real-time workload simulation
+* Prometheus metrics pipeline
+* Grafana visualization
+* CPU & memory observability
+* Request-level behavioral tracking
+
+---
+
+# 🤝 Sharing Grafana Dashboard
+
+## ✅ Best Method — Export JSON
+
+1. Open your dashboard
+2. Click ⚙️ (Settings)
+3. Go to **JSON Model**
+4. Download or copy JSON
+
+---
+
+## Import on another system
+
+```
+Grafana → Dashboards → Import → Upload JSON
+```
+
+---
+
+## Recommended: Store in Repo
+
+```bash
+mkdir -p infra/grafana
+```
+
+Save:
+
+```
+infra/grafana/dashboard.json
+```
 
 ---
 
 # ⏭️ Next Phase
 
-Phase 2 introduces:
+## 🚀 Phase 3 — Feature Aggregation
 
-* Prometheus scraping
-* Grafana dashboards
-* Time-series aggregation
-* Feature engineering for LSTM
+* Query Prometheus programmatically
+* Build time-series feature vectors
+* Aggregate at 15-second intervals
+* Prepare dataset for LSTM
 
 ---
+
+# 🧠 Future Phases
+
+* Online LSTM training (PyTorch)
+* Resource prediction (CPU + Memory)
+* Safety constraints (p95/p99 baseline)
+* Kubernetes YAML recommendation
+* Evaluation (RMSE, MAE, spike detection)
+
+---
+
+# 🎯 Final Goal
+
+A system that:
+
+```
+Observes → Learns → Predicts → Recommends → Adapts
+```
+
+for Kubernetes resource optimization.

@@ -318,16 +318,6 @@ Your Grafana dashboard includes:
 
 ---
 
-# 🎯 Phase 2 Outcome
-
-* Real-time workload simulation
-* Prometheus metrics pipeline
-* Grafana visualization
-* CPU & memory observability
-* Request-level behavioral tracking
-
----
-
 # 🤝 Grafana Dashboard
 
 ---
@@ -430,16 +420,7 @@ Feature Vectors
 ↓  
 Sliding Window Buffer  
 ↓  
-LSTM-ready Sequences  
-
----
-
-## 🎯 Phase 3 Outcome
-
-- Real-time feature aggregation pipeline built  
-- Prometheus metrics converted into ML-ready inputs  
-- Sliding window sequences generated for temporal modeling  
-- System fully prepared for LSTM integration  
+LSTM-ready Sequences   
 
 ---
 
@@ -506,20 +487,143 @@ memory_pred: 78000000
 
 ---
 
-## 🎯 Phase 4 Outcome
+# 🚀 Phase 5 — Real-Time Prediction Observability (COMPLETED)
 
-- Online LSTM training implemented
-- Stable learning achieved
-- Real-time predictions generated
-- Fully integrated into pipeline
+## 🎯 Objective
 
-## ⚠️ Notes
+Expose LSTM predictions as Prometheus metrics and visualize them in Grafana alongside actual system usage.
 
-- Initial predictions may be inaccurate
-- Model improves over time
-- Continuous load is required
+This phase transforms the system into a **fully observable ML pipeline**.
 
 ---
+
+## 🧠 Key Concept
+
+```bash
+Actual Metrics vs Predicted Metrics → Real-Time Comparison → Model Evaluation
+```
+
+We treat ML predictions as first-class observability signals.
+
+### ⚙️ Components Implemented
+
+1. Prometheus Exporter (Aggregator)
+
+The aggregator now exposes:
+
+predicted_cpu_usage
+predicted_memory_usage
+
+These are published via:
+```bash
+http://<aggregator>:8001/metrics
+```
+
+2. Kubernetes Integration
+
+The aggregator is deployed inside Kubernetes:
+
+Deployment → runs aggregator container
+Service → exposes metrics
+ServiceMonitor → enables Prometheus scraping
+
+3. Prometheus Scraping
+
+Prometheus automatically collects:
+
+Actual system metrics (CPU, memory, requests)
+Predicted metrics (from LSTM)
+
+4. Grafana Dashboard
+
+A comprehensive dashboard was built to visualize:
+
+📊 Core Panels
+CPU Usage: Actual vs LSTM Prediction
+Memory Usage: Actual vs LSTM Prediction
+CPU Prediction Error
+Memory Prediction Error
+Model Accuracy Indicator
+
+📈 Key Queries
+CPU (Actual vs Predicted)
+rate(container_cpu_usage_seconds_total{pod=~"mock-app.*"}[30s])
+predicted_cpu_usage
+Memory (Actual vs Predicted)
+container_memory_usage_bytes{pod=~"mock-app.*"}
+predicted_memory_usage
+Prediction Error (IMPORTANT)
+abs(
+  sum(rate(container_cpu_usage_seconds_total{pod=~"mock-app.*"}[30s]))
+  - on() group_left()
+  predicted_cpu_usage
+)
+abs(
+  sum(container_memory_usage_bytes{pod=~"mock-app.*"})
+  - on() group_left()
+  predicted_memory_usage
+)
+Model Accuracy Indicator
+1 - abs(
+  sum(rate(container_cpu_usage_seconds_total{pod=~"mock-app.*"}[30s]))
+  - on() group_left()
+  predicted_cpu_usage
+)
+
+### 🧠 Important Insight (VERY IMPORTANT)
+
+Prometheus requires label alignment for metric operations.
+
+To compute prediction error:
+
+Metrics must be aggregated first
+Label mismatches must be handled using:
+on() group_left()
+
+This ensures correct many-to-one matching between:
+
+Multiple pods (actual metrics)
+Single prediction (model output)
+```bash
+🔁 Data Flow
+Kubernetes Pods
+↓
+Prometheus Metrics
+↓
+Aggregator (Feature Builder + LSTM)
+↓
+Predicted Metrics Exported
+↓
+Prometheus Scrapes
+↓
+Grafana Visualizes
+```
+
+### 🚀 System Capability (AFTER PHASE 5)
+
+The system now:
+
+Observes workload behavior
+Learns from real-time data
+Predicts future resource usage
+Visualizes predictions alongside actual metrics
+
+⚠️ Notes
+Predictions may initially lag or fluctuate
+Model stabilizes with continuous training
+Error metrics improve over time
+Requires sustained load for meaningful learning
+
+---
+
+# 🚀 NEXT STEP
+
+👉 **“phase 6”**
+
+Now we add:
+
+## Safety Guard (p95 / p99 constraints)
+
 
 # 🎯 Final Goal
 

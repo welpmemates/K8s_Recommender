@@ -49,6 +49,10 @@ K8S_RECOMMENDER/
 │   |    ├── feature_builder.py
 │   |    ├── main.py
 │   |    ├── prometheus_client.py
+│   |    ├── deployment.yaml
+│   |    ├── service.yaml
+│   |    ├── servicemonitor.yaml
+│   |    ├── Dockerfile
 │   ├── grafana/
 │   |    ├── dashboard.json
 │   ├── ml/

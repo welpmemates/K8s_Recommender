@@ -2,18 +2,23 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Copy entire infra folder
-COPY . .
+# copy aggregator
+COPY aggregator/ ./aggregator
 
-# Install normal packages FIRST (default PyPI)
+# copy ml module
+COPY ml/ ./ml
+
+# install deps
 RUN pip install --no-cache-dir \
     prometheus-client \
     requests \
     numpy \
     scikit-learn
 
-# Install CPU-only torch separately
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
-# Run aggregator
-CMD ["python", "aggregator/main.py"]
+WORKDIR /app/aggregator
+
+ENV PYTHONUNBUFFERED=1
+
+CMD ["python", "main.py"]

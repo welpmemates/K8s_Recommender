@@ -14,6 +14,7 @@ from prometheus_client import start_http_server, Gauge
 # Your modules
 from prom_client import PrometheusClient
 from feature_builder import FeatureBuilder
+from yaml_generator import generate_resources_yaml
 from config import (
     QUERY_INTERVAL,
     REQUEST_RATE_QUERY,
@@ -139,7 +140,7 @@ class Aggregator:
         return np.array(sequence, dtype=np.float32)
 
     def run(self):
-        print("🚀 Aggregator + LSTM + Safety Guard + Prometheus exporter started...")
+        print("🚀 Aggregator + LSTM + Safety Guard + YAML Generator started...")
 
         while True:
             try:
@@ -161,7 +162,7 @@ class Aggregator:
 
                 print("📊 Feature:", feature)
 
-                # Step 5: ML Training + Prediction + Safety Guard
+                # Step 5: ML Training + Prediction + Safety Guard + YAML
                 if sequence is not None:
                     print("🧠 Sequence shape:", sequence.shape)
 
@@ -181,15 +182,14 @@ class Aggregator:
                     # SAFETY GUARD LAYER (Phase 6)
                     #
                     # WHY max() and not just p95:
-                    #   When the model is confident and predicts
-                    #   ABOVE p95 (e.g. during a detected spike),
-                    #   we trust the model. When it underpredicts,
-                    #   p95 acts as the floor.
+                    #   When the model predicts ABOVE p95 (spike
+                    #   detected), we trust the model. When it
+                    #   underpredicts, p95 acts as the floor.
                     #
                     # WHY call p95 every tick:
                     #   p95 is a rolling 5m window — it shifts as
-                    #   workload changes. Stale p95 would be worse
-                    #   than no safety guard at all.
+                    #   workload changes. Stale p95 is worse than
+                    #   no safety guard at all.
                     # ----------------------------------
                     p95 = self.prom.get_p95_metrics()
 
@@ -203,16 +203,32 @@ class Aggregator:
                     })
 
                     # ----------------------------------
-                    # EXPORT TO PROMETHEUS
+                    # EXPORT SAFE VALUES TO PROMETHEUS
                     # ----------------------------------
 
-                    # Raw model predictions (keep for comparison in Grafana)
+                    # Raw model predictions (kept for Grafana comparison)
                     PREDICTED_CPU.set(pred_dict["cpu_pred"])
                     PREDICTED_MEMORY.set(pred_dict["memory_pred"])
 
                     # Safety-adjusted final recommendations
                     SAFE_CPU.set(cpu_safe)
                     SAFE_MEMORY.set(mem_safe)
+
+                    # ----------------------------------
+                    # YAML GENERATOR
+                    #
+                    # WHY after Prometheus export:
+                    #   Metrics must be published first — if YAML
+                    #   generation crashes for any reason, at least
+                    #   Prometheus still has the latest safe values.
+                    #
+                    # WHY every tick:
+                    #   Workload changes continuously. A YAML spec
+                    #   generated once at startup would go stale.
+                    #   In Phase 8+ we'll only write to disk when
+                    #   the values change beyond a threshold.
+                    # ----------------------------------
+                    generate_resources_yaml(cpu_safe, mem_safe)
 
                 time.sleep(QUERY_INTERVAL)
 

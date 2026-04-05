@@ -728,6 +728,134 @@ Missing p95 data	Falls back to prediction
 
 ---
 
+# 🚀 Phase 7 — YAML Generator (COMPLETED)
+## 🎯 Objective
+Convert safe, model-driven predictions into real Kubernetes resource configurations.
+
+This phase transforms the system from observational + predictive into an actionable decision system.
+
+## 🧠 Key Concept
+Safe Predictions → Resource Conversion → Kubernetes YAML
+We take:
+```bash
+safe_cpu_usage (cores)
+safe_memory_usage (bytes)
+```
+
+And convert them into:
+```bash
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 400m
+    memory: 512Mi
+❗ Why This Is Critical
+```
+
+Before Phase 7:
+System observes metrics ✅
+Model predicts usage ✅
+Safety guard prevents underprediction ✅
+BUT Kubernetes does not use these values ❌
+
+After Phase 7:
+AI → Safe Decision → Deployable Configuration
+⚙️ Components Implemented
+1. YAML Generator Module
+
+📁 infra/aggregator/yaml_generator.py
+
+Responsibilities:
+Convert CPU → millicores
+Convert memory → Mi (Mebibytes)
+Apply safety buffer
+Generate Kubernetes-compatible resource spec
+Print YAML output
+
+2. Unit Conversion (CRITICAL)
+```bash
+CPU:
+
+cores → millicores
+0.2 → 200m
+
+Memory:
+
+bytes → Mi
+(÷ 1024²)
+```
+
+Why this matters:
+Kubernetes does NOT accept raw floats
+Uses strict resource units
+Incorrect conversion = broken deployments
+
+3. Safety Buffer Layer (Phase 7 Addition)
+Even after p95 safety:
+```bash
+cpu_final    = safe_cpu    × 1.2
+memory_final = safe_memory × 1.2
+```
+
+🧠 Why?
+Handles sudden spikes beyond p95
+Prevents throttling / OOMKill
+Industry-standard overprovisioning
+
+4. Requests & Limits Strategy
+```bash
+requests = buffered values
+limits   = 2 × requests
+```
+
+Why:
+Requests → scheduler guarantee
+Limits → hard ceiling
+
+Too low → OOMKill
+Too high → wasted resources
+
+5. Aggregator Integration
+Inside: 📁 infra/aggregator/main.py
+
+After safety guard: generate_resources_yaml(cpu_safe, mem_safe)
+
+✔ Runs every cycle
+✔ Uses real-time predictions
+✔ Keeps system adaptive
+
+```bash
+🔁 Updated Data Flow
+Kubernetes Pods
+↓
+Prometheus Metrics
+↓
+Aggregator (Feature Builder + LSTM)
+↓
+Predicted Metrics
+↓
+Safety Guard (p95 baseline)
+↓
+Safe Metrics
+↓
+YAML Generator ✅
+↓
+Kubernetes Resource Spec (READY)
+```
+
+## 🚀 System Capability (AFTER PHASE 7)
+
+The system now:
+Observes workload behavior
+Learns from real-time data
+Predicts future resource usage
+Applies safety guarantees
+Generates Kubernetes-ready configurations
+
+---
+
 # 🎯 Final Goal
 
 A system that:

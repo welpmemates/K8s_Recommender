@@ -1,5 +1,5 @@
 # Prometheus base URL
-PROMETHEUS_URL = "http://localhost:9090"
+PROMETHEUS_URL = "http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090"
 
 # Query interval (seconds)
 QUERY_INTERVAL = 15

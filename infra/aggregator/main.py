@@ -5,11 +5,14 @@ import os
 # Add infra/ to Python path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-
 import time
 import numpy as np
 
-from prometheus_client import PrometheusClient
+# Prometheus
+from prometheus_client import start_http_server, Gauge
+
+# Your modules
+from prom_client import PrometheusClient
 from feature_builder import FeatureBuilder
 from config import (
     QUERY_INTERVAL,
@@ -24,6 +27,20 @@ from ml.dataset import build_sample
 from ml.utils import format_prediction
 
 
+# -------------------------------
+# PROMETHEUS METRICS
+# -------------------------------
+PREDICTED_CPU = Gauge(
+    "predicted_cpu_usage",
+    "Predicted CPU usage (cores)"
+)
+
+PREDICTED_MEMORY = Gauge(
+    "predicted_memory_usage",
+    "Predicted memory usage (bytes)"
+)
+
+
 class Aggregator:
     def __init__(self):
         self.prom = PrometheusClient()
@@ -31,12 +48,27 @@ class Aggregator:
 
         self.buffer = []  # sliding window
 
-        self.trainer = OnlineTrainer() # LSTM trainer
+        self.trainer = OnlineTrainer()  # LSTM trainer
+
+        # -------------------------------
+        # CPU GAP FIX
+        # -------------------------------
+        self.last_valid_cpu = None
 
     def collect_metrics(self):
         request_rate = self.prom.get_metric(REQUEST_RATE_QUERY)
         cpu_usage = self.prom.get_metric(CPU_USAGE_QUERY)
         memory_usage = self.prom.get_metric(MEMORY_USAGE_QUERY)
+        
+        if cpu_usage == 0.0:
+            if self.last_valid_cpu is not None:
+                print("⚠️ CPU gap detected, using last value")
+                cpu_usage = self.last_valid_cpu
+            else:
+                # fallback if no previous value
+                cpu_usage = 0.01
+        else:
+            self.last_valid_cpu = cpu_usage
 
         return request_rate, cpu_usage, memory_usage
 
@@ -73,7 +105,7 @@ class Aggregator:
         return np.array(sequence, dtype=np.float32)
 
     def run(self):
-        print("🚀 Aggregator + LSTM started...")
+        print("🚀 Aggregator + LSTM + Prometheus exporter started...")
 
         while True:
             try:
@@ -93,17 +125,16 @@ class Aggregator:
                 # Step 4: Build sequence
                 sequence = self.get_sequence()
 
-                # Step 5: Debug feature
                 print("📊 Feature:", feature)
 
-                # Step 6: ML Training + Prediction
+                # Step 5: ML Training + Prediction
                 if sequence is not None:
                     print("🧠 Sequence shape:", sequence.shape)
 
                     # Build training sample
                     x, y = build_sample(sequence)
 
-                    # Train model (online)
+                    # Train model
                     loss, pred = self.trainer.train_step(x, y)
 
                     # Format prediction
@@ -112,7 +143,12 @@ class Aggregator:
                     print("📉 Loss:", loss)
                     print("🔮 Prediction:", pred_dict)
 
-                # Step 7: Sleep
+                    # -------------------------------
+                    # UPDATE PROMETHEUS METRICS
+                    # -------------------------------
+                    PREDICTED_CPU.set(pred_dict["cpu_pred"])
+                    PREDICTED_MEMORY.set(pred_dict["memory_pred"])
+
                 time.sleep(QUERY_INTERVAL)
 
             except Exception as e:
@@ -120,6 +156,14 @@ class Aggregator:
                 time.sleep(QUERY_INTERVAL)
 
 
+# -------------------------------
+# ENTRY POINT
+# -------------------------------
 if __name__ == "__main__":
+    # Start Prometheus metrics server
+    start_http_server(8001)
+
+    print("📡 Prometheus metrics available at http://localhost:8001/metrics")
+
     agg = Aggregator()
     agg.run()

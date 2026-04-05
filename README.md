@@ -328,24 +328,116 @@ Grafana → Dashboards → Import → Upload JSON
 
 ---
 
-# ⏭️ Next Phase
+# 🚀 Phase 3 — Feature Aggregation (COMPLETED)
 
-## 🚀 Phase 3 — Feature Aggregation
+## 🎯 Objective
 
-* Query Prometheus programmatically
-* Build time-series feature vectors
-* Aggregate at 15-second intervals
-* Prepare dataset for LSTM
+Convert raw Prometheus time-series metrics into structured, fixed-size feature vectors suitable for training an online LSTM model.
 
 ---
 
-# 🧠 Future Phases
+## 🧠 Key Concept
 
-* Online LSTM training (PyTorch)
-* Resource prediction (CPU + Memory)
-* Safety constraints (p95/p99 baseline)
-* Kubernetes YAML recommendation
-* Evaluation (RMSE, MAE, spike detection)
+Prometheus Metrics → Aggregation → Sliding Window → LSTM Input
+
+Instead of feeding raw requests or tokens directly into the model, we transform system behavior into time-based feature vectors. This converts unbounded request streams into bounded, learnable sequences.
+
+---
+
+## ⚙️ Components Implemented
+
+### 1. Prometheus Client
+
+- Queries Prometheus HTTP API (`/api/v1/query`)
+- Extracts numeric values from responses
+- Aggregates metrics across all pods
+- Supports:
+  - Request rate
+  - CPU usage
+  - Memory usage
+
+---
+
+### 2. Feature Builder
+
+At each timestep, builds a structured feature vector:
+
+{
+  timestamp,
+  request_rate,
+  cpu_usage,
+  memory_usage,
+  cpu_demand,
+  memory_demand,
+  heavy_ratio
+}
+
+Derived features:
+
+- CPU Demand → estimated from request rate  
+- Memory Demand → estimated from request rate  
+- Heavy Ratio → represents workload complexity  
+
+---
+
+### 3. Aggregator Loop
+
+- Runs every 15 seconds
+- Continuously performs:
+
+Collect Metrics → Build Features → Store → Repeat
+
+- Streams real-time system behavior
+
+---
+
+### 4. Sliding Window Buffer (CRITICAL)
+
+- Maintains last 10 timesteps
+- Converts feature stream into sequences
+
+Final sequence shape:
+
+(10, 6)
+
+Where each timestep contains:
+
+request_rate, cpu_usage, memory_usage, cpu_demand, memory_demand, heavy_ratio
+
+---
+
+## 🔁 Data Flow
+
+Kubernetes Pods  
+↓  
+Prometheus Metrics  
+↓  
+Aggregator Service  
+↓  
+Feature Vectors  
+↓  
+Sliding Window Buffer  
+↓  
+LSTM-ready Sequences  
+
+---
+
+## 🎯 Phase 3 Outcome
+
+- Real-time feature aggregation pipeline built  
+- Prometheus metrics converted into ML-ready inputs  
+- Sliding window sequences generated for temporal modeling  
+- System fully prepared for LSTM integration  
+
+---
+
+## ⏭️ Next Phase
+
+🚀 Phase 4 — Online LSTM Model
+
+- Build PyTorch LSTM  
+- Perform real-time inference  
+- Train incrementally using streaming data  
 
 ---
 

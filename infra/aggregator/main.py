@@ -1,3 +1,11 @@
+# Package inclusion
+import sys
+import os
+
+# Add infra/ to Python path
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+
 import time
 import numpy as np
 
@@ -11,6 +19,10 @@ from config import (
     WINDOW_SIZE
 )
 
+from ml.trainer import OnlineTrainer
+from ml.dataset import build_sample
+from ml.utils import format_prediction
+
 
 class Aggregator:
     def __init__(self):
@@ -18,6 +30,8 @@ class Aggregator:
         self.builder = FeatureBuilder()
 
         self.buffer = []  # sliding window
+
+        self.trainer = OnlineTrainer() # LSTM trainer
 
     def collect_metrics(self):
         request_rate = self.prom.get_metric(REQUEST_RATE_QUERY)
@@ -59,7 +73,7 @@ class Aggregator:
         return np.array(sequence, dtype=np.float32)
 
     def run(self):
-        print("🚀 Aggregator started...")
+        print("🚀 Aggregator + LSTM started...")
 
         while True:
             try:
@@ -76,16 +90,29 @@ class Aggregator:
                 # Step 3: Update buffer
                 self.update_buffer(feature)
 
-                # Step 4: Try building sequence
+                # Step 4: Build sequence
                 sequence = self.get_sequence()
 
-                # Step 5: Debug output
+                # Step 5: Debug feature
                 print("📊 Feature:", feature)
 
+                # Step 6: ML Training + Prediction
                 if sequence is not None:
                     print("🧠 Sequence shape:", sequence.shape)
 
-                # Step 6: Sleep
+                    # Build training sample
+                    x, y = build_sample(sequence)
+
+                    # Train model (online)
+                    loss, pred = self.trainer.train_step(x, y)
+
+                    # Format prediction
+                    pred_dict = format_prediction(pred)
+
+                    print("📉 Loss:", loss)
+                    print("🔮 Prediction:", pred_dict)
+
+                # Step 7: Sleep
                 time.sleep(QUERY_INTERVAL)
 
             except Exception as e:

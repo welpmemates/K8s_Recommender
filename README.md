@@ -34,10 +34,29 @@ Request → Token → Resource Signature → Aggregated Features → LSTM
 K8S_RECOMMENDER/
 ├── mock_app/
 │   ├── app/                # FastAPI application
+│   |    ├── main.py
 │   ├── docker/             # Dockerfile
+│   |    ├── Dockerfile
 │   ├── k8s/                # Kubernetes manifests
-│   └── locust/             # Load testing scripts
-├── infra/                  # (Phase 3+) ML + aggregation services
+│   |    ├── deployment.yaml
+│   |    ├── service.yaml
+│   |    ├── servicemonitor.yaml
+│   ├── locust/             # Load testing scripts
+│   |    ├── locustfile.py
+├── infra/                  # ML + aggregation services
+│   ├── aggregator/
+│   |    ├── config.py
+│   |    ├── feature_builder.py
+│   |    ├── main.py
+│   |    ├── prometheus_client.py
+│   ├── grafana/
+│   |    ├── dashboard.json
+│   ├── ml/
+│   |    ├── config.py
+│   |    ├── dataset.py
+│   |    ├── model.py
+│   |    ├── trainer.py
+│   |    ├── utils.py
 ├── README.md
 └── requirements.txt
 ```
@@ -174,19 +193,12 @@ kubectl apply -f mock_app/k8s/
 kubectl get pods
 ```
 
----
-
 ## Test Application
 
 ```bash
 minikube ip
-```
-
-```bash
 curl "http://<ip>:30007/work?size=10000"
 ```
-
----
 
 ## Metrics Endpoint
 
@@ -431,22 +443,89 @@ LSTM-ready Sequences
 
 ---
 
-## ⏭️ Next Phase
+# 🚀 Phase 4 — Online LSTM Model (COMPLETED)
 
-🚀 Phase 4 — Online LSTM Model
+## 🎯 Objective
 
-- Build PyTorch LSTM  
-- Perform real-time inference  
-- Train incrementally using streaming data  
+Train a real-time LSTM model that predicts future CPU and memory usage from aggregated time-series data.
+
+---
+
+## 🧠 Architecture
+```bash
+Sequence (10, 6) → LSTM → Prediction (CPU, Memory)
+```
+
+---
+
+## ⚙️ Components
+
+### 1. LSTM Model (PyTorch)
+
+- Input: 6 features
+- Hidden size: 64
+- Output: 2 values (CPU, Memory)
+
+### 2. Dataset Builder
+```bash
+Input:  (9, 6)
+Target: (cpu_usage, memory_usage)
+```
+
+### 3. Online Training Loop
+
+At every timestep:
+
+1. Sequence generated
+2. Sample built
+3. Forward pass
+4. Loss computed (MSE)
+5. Backpropagation
+6. Weights updated
+
+### 4. Normalization (CRITICAL)
+
+- Memory scaled (`÷ 1e8`)
+- Demand scaled
+- Prevents exploding gradients
+
+---
+
+## 🔁 Data Flow
+```bash
+Prometheus → Aggregator → Sequence → LSTM → Prediction → Update
+```
+
+---
+
+## 📊 Output Example
+```bash
+cpu_pred:    0.48
+memory_pred: 78000000
+```
+
+---
+
+## 🎯 Phase 4 Outcome
+
+- Online LSTM training implemented
+- Stable learning achieved
+- Real-time predictions generated
+- Fully integrated into pipeline
+
+## ⚠️ Notes
+
+- Initial predictions may be inaccurate
+- Model improves over time
+- Continuous load is required
 
 ---
 
 # 🎯 Final Goal
 
 A system that:
-
-```
-Observes → Learns → Predicts → Recommends → Adapts
+```bash
+Observe → Learn → Predict → Recommend → Adapt
 ```
 
 for Kubernetes resource optimization.

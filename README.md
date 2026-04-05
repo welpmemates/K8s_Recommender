@@ -620,14 +620,113 @@ Requires sustained load for meaningful learning
 
 ---
 
-# 🚀 NEXT STEP
+# 🚀 Phase 6 — Safety Guard (COMPLETED)
+## 🎯 Objective
 
-👉 **“phase 6”**
+Prevent under-provisioning by introducing a statistical safety baseline using historical metrics.
 
-Now we add:
+This ensures that the system never recommends resources lower than what recent workload patterns demand.
 
-## Safety Guard (p95 / p99 constraints)
+## 🧠 Key Concept
+Final Recommendation = max(Model Prediction, Safety Baseline)
 
+Where:
+Model Prediction → LSTM output
+Safety Baseline → p95 (95th percentile) of recent usage
+
+## ❗ Why This Is Critical
+
+LSTM models:
+May underpredict during sudden spikes
+Learn with slight delay in dynamic systems
+
+Without safety:
+Underprediction → OOMKill → Pod Crash → SLA Violation
+
+## ⚙️ Components Implemented
+1. Safety Baseline (p95)
+
+We compute a rolling 95th percentile over the last 5 minutes.
+
+CPU
+```bash
+quantile_over_time(
+  0.95,
+  rate(container_cpu_usage_seconds_total{pod=~"mock-app.*"}[30s])[5m:]
+)
+```
+
+```bash
+Memory
+quantile_over_time(
+  0.95,
+  container_memory_usage_bytes{pod=~"mock-app.*"}[5m:]
+)
+```
+
+2. Prometheus Client Extension
+
+Added:
+```bash
+get_p95_metrics()
+```
+
+Responsibilities:
+Query Prometheus for p95 values
+Safely extract values
+Return defaults (0.0) if data missing
+
+3. Safety Guard Logic
+Inside the aggregator loop:
+
+```bash
+cpu_safe = max(cpu_pred, cpu_p95)
+memory_safe = max(memory_pred, memory_p95)
+```
+
+4. New Prometheus Metrics
+The system now exports:
+```bash
+safe_cpu_usage
+safe_memory_usage
+```
+These represent final recommended values.
+
+5. Observability
+Logs now include:
+```bash
+🔮 Prediction: {...}
+🛡️ P95 Baseline: {...}
+🛡️ Safe Prediction: {...}
+```
+This makes system behavior fully transparent.
+
+```bash
+🔁 Updated Data Flow
+Kubernetes Pods
+↓
+Prometheus Metrics
+↓
+Aggregator (Feature Builder + LSTM)
+↓
+Predicted Metrics
+↓
+Safety Guard (p95 baseline)
+↓
+Safe Metrics Exported
+↓
+Prometheus Scrapes
+↓
+Grafana Visualizes
+```
+
+## 📊 System Behavior
+Scenario	Outcome
+Prediction ≥ p95	Model trusted
+Prediction < p95	Safety baseline applied
+Missing p95 data	Falls back to prediction
+
+---
 
 # 🎯 Final Goal
 

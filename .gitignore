@@ -30,4 +30,4 @@ Thumbs.db
 *.swp
 
 # Generated file
-infra/aggregator/generation/
+infra/aggregator/generation/generated_resources.yaml

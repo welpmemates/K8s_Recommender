@@ -18,3 +18,11 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001
+          volumeMounts:
+            - name: yaml-output
+              mountPath: /mnt/aggregator-output
+      volumes:
+        - name: yaml-output
+          hostPath:
+            path: /mnt/aggregator-output
+            type: DirectoryOrCreate

@@ -856,6 +856,166 @@ Generates Kubernetes-ready configurations
 
 ---
 
+# 🚀 Phase 8 — YAML Persistence + Change Detection (COMPLETED)
+
+## 🎯 Objective
+
+Persist generated Kubernetes resource configurations to disk and prevent unnecessary updates using intelligent change detection.
+
+This phase upgrades the system from **generating recommendations** to **managing stable, production-ready outputs**.
+
+---
+
+## 🧠 Key Concept
+
+```bash
+Safe Predictions → Buffered Resources → YAML File → Change Detection → Stable Output
+
+Instead of printing YAML every cycle, we now:
+
+Persist recommendations to a file
+Update ONLY when meaningful changes occur
+
+❗ Why This Is Critical
+Without Phase 8:
+
+YAML would be rewritten every 15 seconds ❌
+Future auto-apply systems would trigger continuous rolling updates ❌
+System becomes unstable in real deployments ❌
+
+With Phase 8:
+
+Only significant workload changes trigger updates ✅
+Prevents unnecessary restarts ✅
+Makes system production-safe ✅
+⚙️ Components Implemented
+1. YAML File Persistence
+
+📁 infra/aggregator/yaml_generator.py
+
+The system now writes to:
+
+/mnt/aggregator-output/generated_resources.yaml
+
+This path is mapped via: Host → Minikube → Container
+
+Example:
+minikube mount ~/Documents/K8s_Recommender/infra/aggregator/generation:/mnt/aggregator-output
+
+2. Change Detection (CRITICAL)
+
+We only update the YAML if resource values change significantly:
+
+CHANGE_THRESHOLD = 0.10   # 10%
+
+Logic:
+
+if relative_change > 10%:
+    write YAML
+else:
+    skip update
+🧠 Why Relative Change?
+
+Absolute changes don’t scale:
+
+5m CPU change is huge at low usage
+Same 5m is negligible at high usage
+
+Relative change ensures consistent sensitivity.
+
+3. Module-Level State Tracking
+
+We track previously written values:
+
+_last_cpu_m
+_last_mem_mi
+
+Used to compare:
+
+new vs previous values
+4. Smart YAML Writing
+
+On change:
+
+✅ Print full YAML
+✅ Write to file
+
+On no change:
+
+⏸️ Skip write (prevents churn)
+5. Prometheus Integration (IMPORTANT)
+
+Even when YAML is NOT rewritten:
+
+The system still exports:
+
+recommended_cpu_millicores
+recommended_memory_mebibytes
+
+This ensures:
+
+Grafana always shows latest recommendations
+Observability is never blocked by file writes
+
+6. Resource Conversion Pipeline (FINAL FORM)
+LSTM Prediction
+        ↓
+Safety Guard (p95)
+        ↓
+Safe Values
+        ↓
++20% Buffer
+        ↓
+K8s Units Conversion
+        ↓
+Change Detection
+        ↓
+YAML File (generated_resources.yaml)
+
+```bash
+🔁 Updated Data Flow
+Kubernetes Pods
+↓
+Prometheus Metrics
+↓
+Aggregator (Feature Builder + LSTM)
+↓
+Predicted Metrics
+↓
+Safety Guard (p95 baseline)
+↓
+Safe Metrics
+↓
+YAML Generator
+↓
+Change Detection ✅
+↓
+Persistent YAML File ✅
+↓
+Prometheus (Recommended Metrics)
+↓
+Grafana Visualization
+```
+
+## 📊 System Behavior
+Scenario	Outcome
+First run	YAML created
+Small fluctuations	No update
+Significant workload change (>10%)	YAML updated
+Prometheus failure	System continues safely
+
+## 🚀 System Capability (AFTER PHASE 8)
+The system now:
+Observes workload behavior
+Learns from real-time data
+Predicts future usage
+Applies safety guarantees
+Generates Kubernetes configurations
+Persists recommendations to disk
+Avoids unnecessary updates
+
+---
+
 # 🎯 Final Goal
 
 A system that:

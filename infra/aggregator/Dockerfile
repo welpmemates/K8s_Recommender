@@ -13,7 +13,8 @@ RUN pip install --no-cache-dir \
     prometheus-client \
     requests \
     numpy \
-    scikit-learn
+    scikit-learn \
+    pyyaml
 
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 

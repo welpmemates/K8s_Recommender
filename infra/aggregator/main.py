@@ -31,23 +31,28 @@ from ml.utils import format_prediction
 # -------------------------------
 # PROMETHEUS METRICS
 #
-# WHY two sets of gauges:
-#   predicted_* = raw LSTM output (what the model thinks)
-#   safe_*      = max(prediction, p95 baseline)
+# FOUR layers of CPU/memory metrics — each tells a different story:
 #
-#   Keeping both lets Grafana show:
-#     - How much the safety guard is adding on top
-#     - Whether the model is learning to match the baseline
+#   predicted_*     → raw LSTM output (what the model learned)
+#   safe_*          → max(prediction, p95)  (safety floor)
+#   recommended_*   → safe * 1.2x buffer, converted to K8s units
+#                     (what we'd actually put in a manifest)
+#
+# WHY expose recommended_* separately:
+#   safe_* is in raw units (cores / bytes).
+#   recommended_* is in K8s scheduling units (millicores / Mi).
+#   Grafana panels showing "what K8s would get" should use
+#   recommended_* — it's the actionable number.
 # -------------------------------
 
 PREDICTED_CPU = Gauge(
     "predicted_cpu_usage",
-    "Predicted CPU usage (cores)"
+    "Predicted CPU usage (cores) — raw LSTM output"
 )
 
 PREDICTED_MEMORY = Gauge(
     "predicted_memory_usage",
-    "Predicted memory usage (bytes)"
+    "Predicted memory usage (bytes) — raw LSTM output"
 )
 
 SAFE_CPU = Gauge(
@@ -60,34 +65,38 @@ SAFE_MEMORY = Gauge(
     "Safety-adjusted memory usage (bytes) — max(prediction, p95)"
 )
 
+RECOMMENDED_CPU = Gauge(
+    "recommended_cpu_millicores",
+    "Recommended CPU for K8s manifest (millicores) — safe * 1.2x buffer"
+)
+
+RECOMMENDED_MEMORY = Gauge(
+    "recommended_memory_mebibytes",
+    "Recommended memory for K8s manifest (MiB) — safe * 1.2x buffer"
+)
 
 class Aggregator:
     def __init__(self):
-        self.prom = PrometheusClient()
+        self.prom    = PrometheusClient()
         self.builder = FeatureBuilder()
+        self.buffer  = []         # sliding window
+        self.trainer = OnlineTrainer()
 
-        self.buffer = []  # sliding window
-
-        self.trainer = OnlineTrainer()  # LSTM trainer
-
-        # -------------------------------
-        # CPU GAP FIX
-        # -------------------------------
+        # CPU gap fix — last known good value
         self.last_valid_cpu = None
 
     def collect_metrics(self):
         data = self.prom.get_metrics()
 
         request_rate = data["request_rate"]
-        cpu_usage = data["cpu_usage"]
+        cpu_usage    = data["cpu_usage"]
         memory_usage = data["memory_usage"]
 
         # -------------------------------
         # CPU GAP FIX
-        #
-        # WHY: Prometheus sometimes returns 0.0 for CPU between
-        # scrape intervals. Using the last known value avoids
-        # feeding the LSTM a false zero that distorts training.
+        # Prometheus occasionally returns 0.0 between scrape
+        # intervals. Feeding that zero into LSTM distorts training.
+        # Use last known value instead. Floor at 0.01 on cold start.
         # -------------------------------
         if cpu_usage == 0.0:
             if self.last_valid_cpu is not None:
@@ -103,39 +112,33 @@ class Aggregator:
     def update_buffer(self, feature):
         """
         Maintain fixed-size sliding window.
-        WHY pop(0): We want the most recent WINDOW_SIZE steps,
-        dropping the oldest entry as new data arrives.
+        pop(0) drops the oldest entry as new data arrives.
         """
         self.buffer.append(feature)
-
         if len(self.buffer) > WINDOW_SIZE:
             self.buffer.pop(0)
 
     def get_sequence(self):
         """
-        Convert buffer → LSTM input format.
+        Convert buffer → LSTM input tensor.
         Shape: (WINDOW_SIZE, num_features)
-
-        WHY return None if buffer not full:
-        The LSTM needs exactly WINDOW_SIZE steps to make a
-        meaningful prediction. Partial sequences would produce
-        garbage output.
+        Returns None until buffer is full — partial sequences
+        produce garbage predictions.
         """
-
         if len(self.buffer) < WINDOW_SIZE:
             return None
 
-        sequence = []
-
-        for f in self.buffer:
-            sequence.append([
+        sequence = [
+            [
                 f["request_rate"],
                 f["cpu_usage"],
                 f["memory_usage"],
                 f["cpu_demand"],
                 f["memory_demand"],
                 f["heavy_ratio"]
-            ])
+            ]
+            for f in self.buffer
+        ]
 
         return np.array(sequence, dtype=np.float32)
 
@@ -144,56 +147,39 @@ class Aggregator:
 
         while True:
             try:
-                # Step 1: Collect real-time metrics
+                # ── Step 1: Real-time metrics ──────────────────────────
                 request_rate, cpu_usage, memory_usage = self.collect_metrics()
 
-                # Step 2: Build feature vector
+                # ── Step 2: Feature vector ─────────────────────────────
                 feature = self.builder.build_feature_vector(
-                    request_rate,
-                    cpu_usage,
-                    memory_usage
+                    request_rate, cpu_usage, memory_usage
                 )
 
-                # Step 3: Update sliding window buffer
+                # ── Step 3: Sliding window ─────────────────────────────
                 self.update_buffer(feature)
 
-                # Step 4: Build sequence for LSTM
+                # ── Step 4: Build LSTM sequence ────────────────────────
                 sequence = self.get_sequence()
 
                 print("📊 Feature:", feature)
 
-                # Step 5: ML Training + Prediction + Safety Guard + YAML
                 if sequence is not None:
                     print("🧠 Sequence shape:", sequence.shape)
 
-                    # Build training sample
-                    x, y = build_sample(sequence)
-
-                    # Train model on latest sample
+                    # ── Step 5: Train + predict ────────────────────────
+                    x, y      = build_sample(sequence)
                     loss, pred = self.trainer.train_step(x, y)
-
-                    # Format raw LSTM output
-                    pred_dict = format_prediction(pred)
+                    pred_dict  = format_prediction(pred)
 
                     print("📉 Loss:", loss)
                     print("🔮 Prediction:", pred_dict)
 
-                    # ----------------------------------
-                    # SAFETY GUARD LAYER (Phase 6)
-                    #
-                    # WHY max() and not just p95:
-                    #   When the model predicts ABOVE p95 (spike
-                    #   detected), we trust the model. When it
-                    #   underpredicts, p95 acts as the floor.
-                    #
-                    # WHY call p95 every tick:
-                    #   p95 is a rolling 5m window — it shifts as
-                    #   workload changes. Stale p95 is worse than
-                    #   no safety guard at all.
-                    # ----------------------------------
+                    # ── Step 6: Safety Guard (Phase 6) ─────────────────
+                    # p95 is a rolling 5m window — fetch every tick so
+                    # the floor tracks actual workload changes.
                     p95 = self.prom.get_p95_metrics()
 
-                    cpu_safe = max(pred_dict["cpu_pred"], p95["cpu_p95"])
+                    cpu_safe = max(pred_dict["cpu_pred"],    p95["cpu_p95"])
                     mem_safe = max(pred_dict["memory_pred"], p95["memory_p95"])
 
                     print("🛡️  P95 Baseline:", p95)
@@ -202,33 +188,33 @@ class Aggregator:
                         "memory_safe": mem_safe
                     })
 
-                    # ----------------------------------
-                    # EXPORT SAFE VALUES TO PROMETHEUS
-                    # ----------------------------------
-
-                    # Raw model predictions (kept for Grafana comparison)
+                    # ── Step 7: Export raw + safe to Prometheus ─────────
                     PREDICTED_CPU.set(pred_dict["cpu_pred"])
                     PREDICTED_MEMORY.set(pred_dict["memory_pred"])
-
-                    # Safety-adjusted final recommendations
                     SAFE_CPU.set(cpu_safe)
                     SAFE_MEMORY.set(mem_safe)
 
-                    # ----------------------------------
-                    # YAML GENERATOR
+                    # ── Step 8: YAML Generator ───────────
+                    # generate_resources_yaml now returns a dict with:
+                    #   "cpu_requests_m"     → millicores
+                    #   "memory_requests_mi" → MiB
+                    # Internally it handles change detection + file write.
                     #
-                    # WHY after Prometheus export:
-                    #   Metrics must be published first — if YAML
-                    #   generation crashes for any reason, at least
-                    #   Prometheus still has the latest safe values.
-                    #
-                    # WHY every tick:
-                    #   Workload changes continuously. A YAML spec
-                    #   generated once at startup would go stale.
-                    #   In Phase 8+ we'll only write to disk when
-                    #   the values change beyond a threshold.
-                    # ----------------------------------
-                    generate_resources_yaml(cpu_safe, mem_safe)
+                    # WHY call AFTER Prometheus export:
+                    #   If file write fails, metrics are already published.
+                    #   Never let persistence block observability.
+                    result = generate_resources_yaml(cpu_safe, mem_safe)
+
+                    # ── Step 9: Export recommended values to Prometheus ─
+                    # These are the K8s-unit values (millicores / Mi)
+                    # that would go into an actual manifest — the most
+                    # actionable numbers in the whole pipeline.
+                    RECOMMENDED_CPU.set(result["cpu_requests_m"])
+                    RECOMMENDED_MEMORY.set(result["memory_requests_mi"])
+
+                    print(f"📡 Recommended → "
+                          f"CPU: {result['cpu_requests_m']}m  "
+                          f"Memory: {result['memory_requests_mi']}Mi")
 
                 time.sleep(QUERY_INTERVAL)
 
@@ -241,9 +227,7 @@ class Aggregator:
 # ENTRY POINT
 # -------------------------------
 if __name__ == "__main__":
-    # Start Prometheus metrics server on port 8001
     start_http_server(8001)
-
     print("📡 Prometheus metrics available at http://localhost:8001/metrics")
 
     agg = Aggregator()

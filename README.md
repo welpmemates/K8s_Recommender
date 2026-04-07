@@ -158,6 +158,126 @@ K8s → Prometheus → Aggregator → LSTM → Prediction
 
 ---
 
+# ⚡ Quick Start (Run This Project)
+
+## 🔧 Prerequisites
+
+Make sure you have installed:
+
+* Docker
+* Minikube
+* kubectl
+* Helm
+* Python 3.10+
+
+---
+
+## 🐍 Setup Python Environment
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+---
+
+## 📦 Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## ☸️ Start Kubernetes
+
+```bash
+minikube start --driver=docker
+minikube addons enable metrics-server
+```
+
+---
+
+## 📂 Mount Volume (REQUIRED for YAML output)
+
+```bash
+minikube mount ~/Documents/K8s_Recommender/infra/aggregator/generation:/mnt/aggregator-output
+```
+
+Keep this running in a separate terminal.
+
+---
+
+## 📊 Setup Monitoring
+
+```bash
+kubectl create namespace monitoring
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm install prometheus prometheus-community/kube-prometheus-stack \
+  -n monitoring
+```
+
+---
+
+## 🚀 Deploy Application
+
+```bash
+eval $(minikube docker-env)
+
+docker build -t mock-fastapi:latest -f mock_app/docker/Dockerfile mock_app
+
+kubectl apply -f mock_app/k8s/
+```
+
+---
+
+## 🧠 Deploy Aggregator
+
+```bash
+kubectl apply -f infra/aggregator/
+```
+
+---
+
+## 📊 Access Grafana
+
+```bash
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
+```
+
+Open:
+
+```
+http://localhost:3000
+```
+
+Get password:
+
+```bash
+kubectl --namespace monitoring get secrets prometheus-grafana \
+  -o jsonpath="{.data.admin-password}" | base64 -d ; echo
+```
+
+---
+
+## 🔥 Generate Load
+
+```bash
+cd mock_app/locust
+locust --host=http://<minikube-ip>:30007
+```
+
+Open:
+
+```
+http://localhost:8089
+```
+
+---
+
 # 🚀 How to Run
 
 ## 1. Start Minikube

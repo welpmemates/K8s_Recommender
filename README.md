@@ -58,22 +58,22 @@ We transform **unbounded workloads into structured signals** that can be learned
 
 # ⚙️ Key Features
 
-## ✅ Real-Time Learning
+## Real-Time Learning
 
 * Online LSTM trained continuously
 * No offline dataset required
 
-## ✅ Safety First
+## Safety First
 
 * p95 baseline prevents under-provisioning
 * Additional 20% safety buffer
 
-## ✅ Intelligent YAML Generation
+## Intelligent YAML Generation
 
 * Converts predictions → Kubernetes resources
 * Auto change detection (10% threshold)
 
-## ✅ Full Observability
+## Full Observability
 
 * Prediction vs actual
 * Absolute error tracking
@@ -233,15 +233,6 @@ The dashboard provides:
 * Kubernetes observability
 * Production-safe ML deployment
 * Reliability engineering for ML systems
-
----
-
-# 🚀 Future Work
-
-* Auto-apply YAML to cluster
-* Multi-workload generalization
-* Reinforcement learning for scaling
-* Model drift detection
 
 ---
 

@@ -1,5 +1,14 @@
 # 🚀 Kubernetes Resource Recommender (Online LSTM)
 
+![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-Minukube-blue)
+![PyTorch](https://img.shields.io/badge/PyTorch-LSTM-red)
+![FastAPI](https://img.shields.io/badge/FastAPI-Backend-green)
+![Prometheus](https://img.shields.io/badge/Monitoring-Prometheus-orange)
+![Grafana](https://img.shields.io/badge/Visualization-Grafana-yellow)
+![ML](https://img.shields.io/badge/ML-Online%20Learning-blueviolet)
+![Status](https://img.shields.io/badge/Status-Production--Ready-success)
+
 A **production-style ML system** that observes Kubernetes workloads, learns resource usage patterns in real time, and generates **safe, adaptive resource recommendations**.
 
 ---

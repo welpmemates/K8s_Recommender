@@ -1,4 +1,4 @@
-# 🚀 Kubernetes Resource Recommender (Online LSTM)
+# Kubernetes Resource Recommender (Online LSTM)
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-Minukube-blue)
@@ -13,7 +13,7 @@ A **production-style ML system** that observes Kubernetes workloads, learns reso
 
 ---
 
-# 🧠 Core Idea
+# Core Idea
 
 Instead of modeling raw requests directly:
 
@@ -25,7 +25,7 @@ We transform **unbounded workloads into structured signals** that can be learned
 
 ---
 
-# 🏗️ System Architecture
+# System Architecture
 
 ```
                 ┌──────────────────────────┐
@@ -65,7 +65,7 @@ We transform **unbounded workloads into structured signals** that can be learned
 
 ---
 
-# ⚙️ Key Features
+# Key Features
 
 ## Real-Time Learning
 
@@ -91,7 +91,7 @@ We transform **unbounded workloads into structured signals** that can be learned
 
 ---
 
-# 📊 Evaluation Metrics
+# Evaluation Metrics
 
 The system continuously evaluates itself:
 
@@ -113,7 +113,7 @@ cpu_spike_miss
 
 ---
 
-# 📁 Project Structure
+# Project Structure
 
 ```
 K8s_Recommender/
@@ -157,7 +157,7 @@ K8s_Recommender/
 
 ---
 
-# 🔁 End-to-End Pipeline
+# End-to-End Pipeline
 
 ```
 K8s → Prometheus → Aggregator → LSTM → Prediction
@@ -167,9 +167,9 @@ K8s → Prometheus → Aggregator → LSTM → Prediction
 
 ---
 
-# ⚡ Quick Start (Run This Project)
+# Quick Start (Run This Project)
 
-## 🔧 Prerequisites
+## Prerequisites
 
 Make sure you have installed:
 
@@ -181,7 +181,7 @@ Make sure you have installed:
 
 ---
 
-## 🐍 Setup Python Environment
+## Setup Python Environment
 
 ```bash
 python3 -m venv venv
@@ -190,7 +190,7 @@ source venv/bin/activate
 
 ---
 
-## 📦 Install Dependencies
+## Install Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -198,7 +198,7 @@ pip install -r requirements.txt
 
 ---
 
-## ☸️ Start Kubernetes
+## Start Kubernetes
 
 ```bash
 minikube start --driver=docker
@@ -207,7 +207,7 @@ minikube addons enable metrics-server
 
 ---
 
-## 📂 Mount Volume (REQUIRED for YAML output)
+## Mount Volume (REQUIRED for YAML output)
 
 ```bash
 minikube mount ~/Documents/K8s_Recommender/infra/aggregator/generation:/mnt/aggregator-output
@@ -217,7 +217,7 @@ Keep this running in a separate terminal.
 
 ---
 
-## 📊 Setup Monitoring
+## Setup Monitoring
 
 ```bash
 kubectl create namespace monitoring
@@ -231,7 +231,7 @@ helm install prometheus prometheus-community/kube-prometheus-stack \
 
 ---
 
-## 🚀 Deploy Application
+## Deploy Application
 
 ```bash
 eval $(minikube docker-env)
@@ -243,7 +243,7 @@ kubectl apply -f mock_app/k8s/
 
 ---
 
-## 🧠 Deploy Aggregator
+## Deploy Aggregator
 
 ```bash
 kubectl apply -f infra/aggregator/
@@ -251,7 +251,7 @@ kubectl apply -f infra/aggregator/
 
 ---
 
-## 📊 Access Grafana
+## Access Grafana
 
 ```bash
 kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
@@ -272,7 +272,7 @@ kubectl --namespace monitoring get secrets prometheus-grafana \
 
 ---
 
-## 🔥 Generate Load
+## Generate Load
 
 ```bash
 cd mock_app/locust
@@ -287,7 +287,7 @@ http://localhost:8089
 
 ---
 
-# 🚀 How to Run
+# How to Run
 
 ## 1. Start Minikube
 
@@ -330,7 +330,7 @@ locust --host=http://<minikube-ip>:30007
 
 ---
 
-# 📊 Grafana Dashboard
+# Grafana Dashboard
 
 The dashboard provides:
 
@@ -355,7 +355,7 @@ The dashboard provides:
 
 ---
 
-# 🎯 What This Project Demonstrates
+# What This Project Demonstrates
 
 * Real-time ML systems design
 * Online learning (streaming LSTM)
@@ -365,7 +365,7 @@ The dashboard provides:
 
 ---
 
-# 🧠 Final Insight
+# Final Insight
 
 This system is not just:
 

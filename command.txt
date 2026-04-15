@@ -1,0 +1,9 @@
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
+
+minikube mount ~/Documents/K8s_Recommender/infra/aggregator/generation:/mnt/aggregator-output
+
+locust --host=http://192.168.49.2:30007
+
+kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
+
+kubectl logs -f aggregator-5d8d645b49-587b4
